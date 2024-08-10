@@ -1,26 +1,173 @@
+import os
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext
-
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+import json
+from typing import Any
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
+    ContextTypes,
+    ApplicationBuilder,
 )
 
+# --- Configuration ---
+
+# Load environment variables
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID')  # Anna's chat ID to receive notifications
+WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # The public URL where this bot is hosted
+PORT = int(os.getenv('PORT', '8443'))
+WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
+WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN')  # Optional, for extra security
+
+# --- Logging Configuration ---
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler('bot.log'),  # Log to a file named 'bot.log'
+        logging.StreamHandler()  # Also log to console
+    ]
+)
 logger = logging.getLogger(__name__)
 
-async def start(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /start is issued."""
-    await update.message.reply_text('Hi! You are now connected to the notification bot.')
+# --- Command Handlers ---
 
-async def help_command(update: Update, context: CallbackContext) -> None:
-    """Send a message when the command /help is issued."""
-    await update.message.reply_text('Help!')
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a welcome message and options when the command /start is issued."""
+    keyboard = [
+        [InlineKeyboardButton("Get Updates", callback_data='get_updates')],
+        [InlineKeyboardButton("Learn More", callback_data='learn_more')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        'Welcome! I am Anna Ena\'s notification bot. How can I help you?',
+        reply_markup=reply_markup
+    )
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a help message when the command /help is issued."""
+    await update.message.reply_text(
+        'I can provide updates and information about Anna Ena\'s English courses. Use /start to see available options.'
+    )
+
+# --- Callback Query Handler ---
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles button presses."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == 'get_updates':
+        await query.edit_message_text(
+            text="You'll receive updates about new courses and enrollment opportunities."
+        )
+    elif query.data == 'learn_more':
+        await query.edit_message_text(
+            text="Visit [Anna Ena's Website](https://www.annaena.com) to learn more about her English courses.",
+            parse_mode='Markdown'
+        )
+
+# --- Webhook Handler ---
+
+async def webhook_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle incoming webhook requests from Gravity Forms."""
+    try:
+        message = update.message
+
+        if message is None or message.text is None:
+            logger.error("Received update without message text.")
+            return
+
+        # Assuming Gravity Forms sends data as JSON string in the message text
+        try:
+            data = json.loads(message.text)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            return
+
+        # Extracting relevant data; field names depend on Gravity Forms configuration
+        form_name = data.get('form_name', 'Unknown Form')
+        entry_id = data.get('entry_id', 'Unknown Entry ID')
+        # Add more fields as necessary
+
+        # Construct the notification message
+        notification_message = f"📬 *New Form Submission!*\n\n"
+        notification_message += f"*Form:* {form_name}\n"
+        notification_message += f"*Entry ID:* {entry_id}\n"
+        # Add more details from the data as desired
+
+        # Send the notification to Anna
+        await context.bot.send_message(
+            chat_id=ANNA_TELEGRAM_CHAT_ID,
+            text=notification_message,
+            parse_mode='Markdown'
+        )
+
+        # Optionally, acknowledge receipt to the sender
+        await message.reply_text("Thank you for your submission!")
+
+    except Exception as e:
+        logger.exception(f"Error processing webhook: {e}")
+
+# --- Error Handler ---
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log the error and send a user-friendly message."""
+    logger.error(msg="Exception while handling an update:", exc_info=context.error)
+
+    # Notify developer/admin about the error
+    if update and isinstance(update, Update) and update.effective_chat:
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="An unexpected error occurred. The administrators have been notified."
+            )
+        except Exception as e:
+            logger.error(f"Failed to send error message to user: {e}")
+
+    # Optionally, send error details to admin chat
+
+# --- Main Function ---
+
+def main() -> None:
+    """Start the bot."""
+
+    # Ensure that the necessary environment variables are set
+    missing_vars = []
+    if TELEGRAM_BOT_TOKEN is None:
+        missing_vars.append('TELEGRAM_BOT_TOKEN')
+    if ANNA_TELEGRAM_CHAT_ID is None:
+        missing_vars.append('ANNA_TELEGRAM_CHAT_ID')
+    if WEBHOOK_URL is None:
+        missing_vars.append('WEBHOOK_URL')
+    if missing_vars:
+        logger.critical(f"Missing required environment variables: {', '.join(missing_vars)}")
+        exit(1)
+
+    # Build the application
+    application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CallbackQueryHandler(button))
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, webhook_handler))
+    application.add_error_handler(error_handler)
+
+    # Set up webhook
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=WEBHOOK_PATH,
+        webhook_url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
+        secret_token=WEBHOOK_SECRET_TOKEN  # Optional; can be None
+    )
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token("7098919168:AAF_n7g1D49w1Lbs0_xBpSgwFmUrVf3Mmu8").build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-
-    app.run_polling()
+    main()

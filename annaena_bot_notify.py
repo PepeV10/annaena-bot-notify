@@ -16,17 +16,15 @@ from telegram.ext import (
 )
 
 # --- Load environment variables from the .env file ---
-load_dotenv()
+load_dotenv()  # Make sure this is at the top before accessing any environment variables
 
 # --- Configuration ---
-
-# Load environment variables
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID') 
 WEBHOOK_URL = os.getenv('WEBHOOK_URL') 
 PORT = int(os.getenv('PORT', '8443'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
-WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN') 
+WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN')
 
 # --- Logging Configuration ---
 

@@ -17,12 +17,13 @@ from telegram.ext import (
 # --- Configuration ---
 
 # Load environment variables
-TELEGRAM_BOT_TOKEN = os.getenv('7098919168:AAF_n7g1D49w1Lbs0_xBpSgwFmUrVf3Mmu8')
-ANNA_TELEGRAM_CHAT_ID = os.getenv('72392285')  # Anna's chat ID to receive notifications
-WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # The public URL where this bot is hosted
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID') 
+WEBHOOK_URL = os.getenv('WEBHOOK_URL') 
 PORT = int(os.getenv('PORT', '8443'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
-WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN')  # Optional, for extra security
+WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN') 
+
 
 # --- Logging Configuration ---
 

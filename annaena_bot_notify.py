@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 import os
 import logging
 import json
@@ -14,6 +15,9 @@ from telegram.ext import (
     ApplicationBuilder,
 )
 
+# --- Load environment variables from the .env file ---
+load_dotenv()
+
 # --- Configuration ---
 
 # Load environment variables
@@ -23,7 +27,6 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 PORT = int(os.getenv('PORT', '8443'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
 WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN') 
-
 
 # --- Logging Configuration ---
 
@@ -132,8 +135,6 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         except Exception as e:
             logger.error(f"Failed to send error message to user: {e}")
 
-    # Optionally, send error details to admin chat
-
 # --- Main Function ---
 
 def main() -> None:
@@ -142,9 +143,9 @@ def main() -> None:
     # Ensure that the necessary environment variables are set
     missing_vars = []
     if TELEGRAM_BOT_TOKEN is None:
-        missing_vars.append('7098919168:AAF_n7g1D49w1Lbs0_xBpSgwFmUrVf3Mmu8')
+        missing_vars.append('TELEGRAM_BOT_TOKEN')
     if ANNA_TELEGRAM_CHAT_ID is None:
-        missing_vars.append('72392285')
+        missing_vars.append('ANNA_TELEGRAM_CHAT_ID')
     if WEBHOOK_URL is None:
         missing_vars.append('WEBHOOK_URL')
     if missing_vars:

@@ -17,8 +17,8 @@ from telegram.ext import (
 # --- Configuration ---
 
 # Load environment variables
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID')  # Anna's chat ID to receive notifications
+TELEGRAM_BOT_TOKEN = os.getenv('7098919168:AAF_n7g1D49w1Lbs0_xBpSgwFmUrVf3Mmu8')
+ANNA_TELEGRAM_CHAT_ID = os.getenv('72392285')  # Anna's chat ID to receive notifications
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # The public URL where this bot is hosted
 PORT = int(os.getenv('PORT', '8443'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
@@ -141,9 +141,9 @@ def main() -> None:
     # Ensure that the necessary environment variables are set
     missing_vars = []
     if TELEGRAM_BOT_TOKEN is None:
-        missing_vars.append('TELEGRAM_BOT_TOKEN')
+        missing_vars.append('7098919168:AAF_n7g1D49w1Lbs0_xBpSgwFmUrVf3Mmu8')
     if ANNA_TELEGRAM_CHAT_ID is None:
-        missing_vars.append('ANNA_TELEGRAM_CHAT_ID')
+        missing_vars.append('72392285')
     if WEBHOOK_URL is None:
         missing_vars.append('WEBHOOK_URL')
     if missing_vars:

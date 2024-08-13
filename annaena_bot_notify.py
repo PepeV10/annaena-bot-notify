@@ -173,5 +173,9 @@ def main() -> None:
         secret_token=WEBHOOK_SECRET_TOKEN  # Optional; can be None
     )
     """
+    
+    # Start polling (added for testing)
+    application.run_polling()
+    
 if __name__ == '__main__':
     main()

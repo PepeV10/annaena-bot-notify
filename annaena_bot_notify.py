@@ -23,7 +23,7 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID') 
 WEBHOOK_URL = os.getenv('WEBHOOK_URL') 
-PORT = int(os.getenv('PORT', '8443'))
+PORT = int(os.getenv('PORT', '5000'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
 WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN') 
 
@@ -31,7 +31,7 @@ WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN')
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
+    level=logging.DEBUG,  # Changed to DEBUG for more detailed logs
     handlers=[
         logging.FileHandler('bot.log'),  # Log to a file named 'bot.log'
         logging.StreamHandler()  # Also log to console
@@ -52,12 +52,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         'Welcome! I am Anna Ena\'s notification bot. How can I help you?',
         reply_markup=reply_markup
     )
+    logger.info("Executed /start command")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a help message when the command /help is issued."""
     await update.message.reply_text(
         'I can provide updates and information about Anna Ena\'s English courses. Use /start to see available options.'
     )
+    logger.info("Executed /help command")
 
 # --- Callback Query Handler ---
 
@@ -70,17 +72,21 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await query.edit_message_text(
             text="You'll receive updates about new courses and enrollment opportunities."
         )
+        logger.info("User selected 'Get Updates'")
     elif query.data == 'learn_more':
         await query.edit_message_text(
             text="Visit [Anna Ena's Website](https://www.annaena.com) to learn more about her English courses.",
             parse_mode='Markdown'
         )
+        logger.info("User selected 'Learn More'")
 
 # --- Webhook Handler ---
 
 async def webhook_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming webhook requests from Gravity Forms."""
     try:
+        logger.debug(f"Received update: {update.to_dict()}")  # Log the full update object
+
         message = update.message
 
         if message is None or message.text is None:
@@ -115,6 +121,8 @@ async def webhook_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Optionally, acknowledge receipt to the sender
         await message.reply_text("Thank you for your submission!")
 
+        logger.info("Processed a webhook request successfully")
+
     except Exception as e:
         logger.exception(f"Error processing webhook: {e}")
 
@@ -124,17 +132,15 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     """Log the error and send a user-friendly message."""
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
 
-    # Notify developer/admin about the error
     if update and isinstance(update, Update) and update.effective_chat:
         try:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text="An unexpected error occurred. The administrators have been notified."
             )
+            logger.info("Notified user of an unexpected error")
         except Exception as e:
             logger.error(f"Failed to send error message to user: {e}")
-
-    # Optionally, send error details to admin chat
 
 # --- Main Function ---
 
@@ -163,7 +169,6 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, webhook_handler))
     application.add_error_handler(error_handler)
 
-    
     # Set up webhook
     application.run_webhook(
         listen="0.0.0.0",
@@ -172,11 +177,9 @@ def main() -> None:
         webhook_url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
         secret_token=WEBHOOK_SECRET_TOKEN  # Optional; can be None
     )
-    
-    """
-    # Start polling (added for testing)
-    application.run_polling()
-    """
-    
+
+    # Uncomment for testing with polling mode
+    # application.run_polling()
+
 if __name__ == '__main__':
     main()

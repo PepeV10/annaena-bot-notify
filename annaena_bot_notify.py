@@ -169,17 +169,17 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, webhook_handler))
     application.add_error_handler(error_handler)
 
-    # Uncomment the section below to use webhook, and comment out the polling line
-    # application.run_webhook(
-    #     listen="0.0.0.0",
-    #     port=PORT,
-    #     url_path=WEBHOOK_PATH,
-    #     webhook_url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
-    #     secret_token=WEBHOOK_SECRET_TOKEN  # Optional; can be None
-    # )
+    # Set up webhook
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=WEBHOOK_PATH,
+        webhook_url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
+        secret_token=WEBHOOK_SECRET_TOKEN  # Optional; can be None
+    )
 
     # Uncomment for testing with polling mode
-    application.run_polling()
+    # application.run_polling()
 
 if __name__ == '__main__':
     main()

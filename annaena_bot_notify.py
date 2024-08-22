@@ -181,7 +181,7 @@ def main() -> None:
 """
 
     # Uncomment for testing with polling mode
-    application.run_polling()
+application.run_polling()
 
 if __name__ == '__main__':
     main()

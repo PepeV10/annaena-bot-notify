@@ -181,5 +181,12 @@ def main() -> None:
     # Uncomment for testing with polling mode
     # application.run_polling()
 
+# Add the print statements here, before main() is called
+print(f"TELEGRAM_BOT_TOKEN: {os.getenv('TELEGRAM_BOT_TOKEN')}")
+print(f"ANNA_TELEGRAM_CHAT_ID: {os.getenv('ANNA_TELEGRAM_CHAT_ID')}")
+print(f"WEBHOOK_URL: {os.getenv('WEBHOOK_URL')}")
+print(f"WEBHOOK_SECRET_TOKEN: {os.getenv('WEBHOOK_SECRET_TOKEN')}")
+
+
 if __name__ == '__main__':
     main()

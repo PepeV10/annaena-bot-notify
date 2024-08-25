@@ -85,17 +85,21 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def webhook_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming webhook requests from Gravity Forms."""
     try:
+        print("Webhook handler invoked.")
         logger.debug(f"Received update: {update.to_dict()}")  # Log the full update object
 
         message = update.message
 
         if message is None or message.text is None:
+            print("Message is None or has no text.")
             logger.error("Received update without message text.")
             return
 
         # Assuming Gravity Forms sends data as JSON string in the message text
+        print("Raw message text:", message.text)
         try:
             data = json.loads(message.text)
+            print("Extracted data from the JSON:", data)
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             return
@@ -112,6 +116,7 @@ async def webhook_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # Add more details from the data as desired
 
         # Send the notification to Anna
+        print("Final notification message:", notification_message)
         await context.bot.send_message(
             chat_id=ANNA_TELEGRAM_CHAT_ID,
             text=notification_message,
@@ -186,7 +191,6 @@ print(f"TELEGRAM_BOT_TOKEN: {os.getenv('TELEGRAM_BOT_TOKEN')}")
 print(f"ANNA_TELEGRAM_CHAT_ID: {os.getenv('ANNA_TELEGRAM_CHAT_ID')}")
 print(f"WEBHOOK_URL: {os.getenv('WEBHOOK_URL')}")
 print(f"WEBHOOK_SECRET_TOKEN: {os.getenv('WEBHOOK_SECRET_TOKEN')}")
-
 
 if __name__ == '__main__':
     main()

@@ -23,7 +23,7 @@ load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID') 
 WEBHOOK_URL = os.getenv('WEBHOOK_URL') 
-PORT = int(os.getenv('PORT', '5000'))
+PORT = int(os.getenv('PORT', '8080'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
 WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN') 
 

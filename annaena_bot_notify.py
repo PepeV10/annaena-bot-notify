@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import logging
 import json
+import sqlite3
 from typing import Any
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -21,23 +22,51 @@ load_dotenv()
 
 # Load environment variables
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID') 
-WEBHOOK_URL = os.getenv('WEBHOOK_URL') 
+ANNA_TELEGRAM_CHAT_ID = os.getenv('ANNA_TELEGRAM_CHAT_ID')
+WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 PORT = int(os.getenv('PORT', '8080'))
 WEBHOOK_PATH = os.getenv('WEBHOOK_PATH', '/telegram-webhook')
-WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN') 
+WEBHOOK_SECRET_TOKEN = os.getenv('WEBHOOK_SECRET_TOKEN')
 
 # --- Logging Configuration ---
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.DEBUG,  # Changed to DEBUG for more detailed logs
+    level=logging.DEBUG,
     handlers=[
-        logging.FileHandler('bot.log'),  # Log to a file named 'bot.log'
-        logging.StreamHandler()  # Also log to console
+        logging.FileHandler('bot.log'),
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
+
+# --- Database Connection and Functions ---
+
+def get_db_connection():
+    """Get a database connection."""
+    return sqlite3.connect('submissions.db')
+
+def init_db():
+    """Initialize the database."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS submissions
+                 (id INTEGER PRIMARY KEY, name TEXT, email TEXT, phone TEXT, course_interest TEXT)''')
+    conn.commit()
+    conn.close()
+
+def store_submission(data):
+    """Store a form submission in the database."""
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("INSERT INTO submissions (name, email, phone, course_interest) VALUES (?, ?, ?, ?)",
+                  (data['name'], data['email'], data['phone'], data['course_interest']))
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f"Error inserting into database: {e}")
+    finally:
+        conn.close()
 
 # --- Command Handlers ---
 
@@ -61,6 +90,16 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
     logger.info("Executed /help command")
 
+async def analytics(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Provide analytics on form submissions."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM submissions")
+    count = c.fetchone()[0]
+    conn.close()
+    await update.message.reply_text(f"Total submissions: {count}")
+    logger.info("Executed analytics command")
+
 # --- Callback Query Handler ---
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -82,54 +121,50 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # --- Webhook Handler ---
 
+def parse_form_data(data):
+    fields = ['name', 'email', 'phone', 'course_interest']
+    parsed_data = {field: data.get(field, 'Not provided') for field in fields}
+    return parsed_data
+
 async def webhook_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming webhook requests from Gravity Forms."""
     try:
-        print("Webhook handler invoked.")
-        logger.debug(f"Received update: {update.to_dict()}")  # Log the full update object
+        logger.debug(f"Received update: {update.to_dict()}")
 
         message = update.message
 
         if message is None or message.text is None:
-            print("Message is None or has no text.")
             logger.error("Received update without message text.")
+            await update.message.reply_text("No valid message received.")
             return
 
-        # Assuming Gravity Forms sends data as JSON string in the message text
-        print("Raw message text:", message.text)
         try:
             data = json.loads(message.text)
-            print("Extracted data from the JSON:", data)
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
+            await update.message.reply_text("Invalid data format received. Please submit valid JSON.")
             return
 
-        # Extracting relevant data; field names depend on Gravity Forms configuration
-        form_name = data.get('form_name', 'Unknown Form')
-        entry_id = data.get('entry_id', 'Unknown Entry ID')
-        # Add more fields as necessary
+        parsed_data = parse_form_data(data)
+        store_submission(parsed_data)
 
-        # Construct the notification message
         notification_message = f"📬 *New Form Submission!*\n\n"
-        notification_message += f"*Form:* {form_name}\n"
-        notification_message += f"*Entry ID:* {entry_id}\n"
-        # Add more details from the data as desired
+        for field, value in parsed_data.items():
+            notification_message += f"*{field.capitalize()}:* {value}\n"
 
-        # Send the notification to Anna
-        print("Final notification message:", notification_message)
         await context.bot.send_message(
             chat_id=ANNA_TELEGRAM_CHAT_ID,
             text=notification_message,
             parse_mode='Markdown'
         )
 
-        # Optionally, acknowledge receipt to the sender
         await message.reply_text("Thank you for your submission!")
 
         logger.info("Processed a webhook request successfully")
 
     except Exception as e:
         logger.exception(f"Error processing webhook: {e}")
+        await update.message.reply_text("An error occurred while processing your request.")
 
 # --- Error Handler ---
 
@@ -164,12 +199,16 @@ def main() -> None:
         logger.critical(f"Missing required environment variables: {', '.join(missing_vars)}")
         exit(1)
 
+    # Initialize the database
+    init_db()
+
     # Build the application
     application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Add handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("analytics", analytics))
     application.add_handler(CallbackQueryHandler(button))
     application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, webhook_handler))
     application.add_error_handler(error_handler)
@@ -180,17 +219,8 @@ def main() -> None:
         port=PORT,
         url_path=WEBHOOK_PATH,
         webhook_url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
-        secret_token=WEBHOOK_SECRET_TOKEN  # Optional; can be None
+        secret_token=WEBHOOK_SECRET_TOKEN
     )
-
-    # Uncomment for testing with polling mode
-    # application.run_polling()
-
-# Add the print statements here, before main() is called
-print(f"TELEGRAM_BOT_TOKEN: {os.getenv('TELEGRAM_BOT_TOKEN')}")
-print(f"ANNA_TELEGRAM_CHAT_ID: {os.getenv('ANNA_TELEGRAM_CHAT_ID')}")
-print(f"WEBHOOK_URL: {os.getenv('WEBHOOK_URL')}")
-print(f"WEBHOOK_SECRET_TOKEN: {os.getenv('WEBHOOK_SECRET_TOKEN')}")
 
 if __name__ == '__main__':
     main()
